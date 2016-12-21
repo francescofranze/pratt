@@ -1,8 +1,12 @@
 use std::fmt;
-use pratt::*;
-use pratt::InspectAST;
+use super::{PrattBox, Token, Pratt};
+use super::InspectAST;
+#[cfg(feature="gc3c")]
+use gc3c::{Mark,InGcEnv};
+#[cfg(not(feature="gc3c"))]
+use super::Mark;
  
-pub struct DynamicToken {
+pub struct DynamicToken  {
     pub code: String,
     pub children: Vec<PrattBox<Token>>,
     pub lbp: u8,
@@ -43,5 +47,13 @@ impl Token for DynamicToken  {
     }
     fn lbp(&self) -> u8 {
         self.lbp
+    }
+}
+#[cfg(not(feature="gc3c"))]
+impl Mark for DynamicToken {}
+
+#[cfg(feature="gc3c")]
+impl Mark for DynamicToken {
+    fn mark(&self, gc: &mut InGcEnv) {
     }
 }
