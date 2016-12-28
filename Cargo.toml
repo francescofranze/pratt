@@ -4,8 +4,8 @@ version = "0.1.0"
 authors = ["francesco franze <francesco.franze@gmail.com>"]
 
 [features]
-#default = ["gc3c"]
-default = []
+default = ["gc3c"]
+##default = []
 
 [dependencies]
 gc3c = { git = "file:///home/franz/Dropbox/rusty/gc3c.git", features=["gc_debug"], optional=true }

@@ -5,13 +5,14 @@ use super::InspectAST;
 use gc3c::{Mark,InGcEnv};
 #[cfg(not(feature="gc3c"))]
 use super::Mark;
+use std::rc::Rc;
  
 pub struct DynamicToken  {
     pub code: String,
     pub children: Vec<PrattBox<Token>>,
     pub lbp: u8,
-    pub fnud: Box<Fn(&DynamicToken, &Pratt)->PrattBox<DynamicToken>>,
-    pub fled: Box<Fn(&DynamicToken, &Pratt, PrattBox<Token>)->PrattBox<DynamicToken>>,
+    pub fnud: Rc<Fn(&mut DynamicToken, PrattBox<Token>, &Pratt)->PrattBox<DynamicToken>>,
+    pub fled: Rc<Fn(&mut DynamicToken, PrattBox<Token>, &Pratt, PrattBox<Token>)->PrattBox<DynamicToken>>,
 }
 
 
@@ -19,7 +20,7 @@ impl fmt::Debug for DynamicToken {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(write!(f, "dynamic {}", self.code));
         for c in &self.children {
-            write!(f, "child: {:?}", c);
+            try!(write!(f, "child: {:?}", c));
         }
         write!(f,"")
     }
@@ -37,13 +38,14 @@ impl DynamicToken {
 impl InspectAST for DynamicToken { }
 
 impl Token for DynamicToken  {
-    fn nud(&self, pratt: &Pratt) -> PrattBox<Token>
+    fn nud(&mut self, this: PrattBox<Token>, pratt: &Pratt) -> PrattBox<Token>
     {
-        (*self.fnud)(self, pratt)
+        (self.fnud.clone())(self, this, pratt)
     }
-    fn led(&self, pratt: &Pratt, left: PrattBox<Token>) -> PrattBox<Token>
+    fn led(&mut self, this: PrattBox<Token>, pratt: &Pratt, left: PrattBox<Token>) -> PrattBox<Token>
     {
-        (*self.fled)(self, pratt, left)
+        //let fled = self.fled.clone();
+        self.fled.clone()(self, this, pratt, left)
     }
     fn lbp(&self) -> u8 {
         self.lbp
