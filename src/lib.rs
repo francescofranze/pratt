@@ -252,7 +252,7 @@ mod tests {
     }
  
     #[derive(Debug)]
-    pub enum StaticSymbol {
+    enum StaticSymbol {
         EndSymbol(EndToken),
         LiteralSymbol(LiteralToken),
         StringSymbol(StringToken),
@@ -547,6 +547,25 @@ mod tests {
                 let right = r.unwrap();
                 match *right.borrow_mut() {
                     MultSymbol(MultToken { left : ref l, right: ref r, .. }) => {
+                        let left = l.unwrap();
+                        match *left.borrow_mut() {
+                            NumSymbol(NumToken { val: v, .. }) => {
+                                assert_eq!(v, 2);
+                            },
+                            _ => {
+                                assert!(false, "2 not found");
+                            }
+                        };
+                        let right = r.unwrap();
+                        match *right.borrow_mut() {
+                            NumSymbol(NumToken { val: v, .. }) => {
+                                assert_eq!(v, 3);
+                            },
+                            _ => {
+                                assert!(false, "3 not found");
+                            }
+                        };
+
                     },
                     _ => {
                         assert!(false, "mult not found");
