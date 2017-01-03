@@ -1,5 +1,5 @@
 use std::fmt;
-use super::{PrattBox, Token, Pratt};
+use super::{PrattBox, Token, Symbol, Pratt};
 use super::InspectAST;
 #[cfg(feature="gc3c")]
 use gc3c::{Mark,InGcEnv};
@@ -9,12 +9,27 @@ use std::rc::Rc;
  
 pub struct DynamicToken  {
     pub code: String,
-    pub children: Vec<PrattBox<Token>>,
+    pub children: Vec<PrattBox<Symbol>>,
     pub lbp: u8,
-    pub fnud: Rc<Fn(&mut DynamicToken, PrattBox<Token>, &Pratt)->PrattBox<DynamicToken>>,
-    pub fled: Rc<Fn(&mut DynamicToken, PrattBox<Token>, &Pratt, PrattBox<Token>)->PrattBox<DynamicToken>>,
+    pub fnud: Rc<Fn(&mut DynamicToken, PrattBox<Symbol>, &Pratt)->PrattBox<DynamicSymbol>>,
+    pub fled: Rc<Fn(&mut DynamicToken, PrattBox<Symbol>, &Pratt, PrattBox<Symbol>)->PrattBox<DynamicSymbol>>,
 }
 
+pub struct DynamicSymbol {
+    token: DynamicToken,
+}
+
+impl Symbol for DynamicSymbol {
+    fn token(&mut self) -> &mut Token {
+        &mut self.token
+    }
+}
+
+impl fmt::Debug for DynamicSymbol {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.token.fmt(f)
+    }
+}
 
 impl fmt::Debug for DynamicToken {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -27,22 +42,21 @@ impl fmt::Debug for DynamicToken {
 }
 
 impl DynamicToken {
-    pub fn add_child(&mut self, child: PrattBox<Token>) {
+    pub fn add_child(&mut self, child: PrattBox<Symbol>) {
         self.children.push(child);
     }
-    pub fn get_child(&self, i: usize) -> Option<&PrattBox<Token>> {
+    pub fn get_child(&self, i: usize) -> Option<&PrattBox<Symbol>> {
         self.children.get(i)
     }
 }
 
-impl InspectAST for DynamicToken { }
 
 impl Token for DynamicToken  {
-    fn nud(&mut self, this: PrattBox<Token>, pratt: &Pratt) -> PrattBox<Token>
+    fn nud(&mut self, this: PrattBox<Symbol>, pratt: &Pratt) -> PrattBox<Symbol>
     {
         (self.fnud.clone())(self, this, pratt)
     }
-    fn led(&mut self, this: PrattBox<Token>, pratt: &Pratt, left: PrattBox<Token>) -> PrattBox<Token>
+    fn led(&mut self, this: PrattBox<Symbol>, pratt: &Pratt, left: PrattBox<Symbol>) -> PrattBox<Symbol>
     {
         //let fled = self.fled.clone();
         self.fled.clone()(self, this, pratt, left)
@@ -52,10 +66,10 @@ impl Token for DynamicToken  {
     }
 }
 #[cfg(not(feature="gc3c"))]
-impl Mark for DynamicToken {}
+impl Mark for DynamicSymbol {}
 
 #[cfg(feature="gc3c")]
-impl Mark for DynamicToken {
+impl Mark for DynamicSymbol {
     fn mark(&self, gc: &mut InGcEnv) {
     }
 }
