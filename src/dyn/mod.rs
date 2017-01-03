@@ -7,20 +7,20 @@ use gc3c::{Mark,InGcEnv};
 use super::Mark;
 use std::rc::Rc;
  
-pub struct DynamicToken  {
+pub struct DynamicToken<S: Symbol>  {
     pub code: String,
-    pub children: Vec<PrattBox<Symbol>>,
+    pub children: Vec<PrattBox<S>>,
     pub lbp: u8,
-    pub fnud: Rc<Fn(&mut DynamicToken, PrattBox<Symbol>, &Pratt)->PrattBox<DynamicSymbol>>,
-    pub fled: Rc<Fn(&mut DynamicToken, PrattBox<Symbol>, &Pratt, PrattBox<Symbol>)->PrattBox<DynamicSymbol>>,
+    pub fnud: Rc<Fn(&mut DynamicToken<S>, PrattBox<S>, &Pratt<S>)->PrattBox<S>>,
+    pub fled: Rc<Fn(&mut DynamicToken<S>, PrattBox<S>, &Pratt<S>, PrattBox<S>)->PrattBox<S>>,
 }
 
 pub struct DynamicSymbol {
-    token: DynamicToken,
+    token: DynamicToken<DynamicSymbol>,
 }
 
 impl Symbol for DynamicSymbol {
-    fn token(&mut self) -> &mut Token {
+    fn token(&mut self) -> &mut Token<DynamicSymbol> {
         &mut self.token
     }
 }
@@ -31,7 +31,7 @@ impl fmt::Debug for DynamicSymbol {
     }
 }
 
-impl fmt::Debug for DynamicToken {
+impl<S: Symbol> fmt::Debug for DynamicToken<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(write!(f, "dynamic {}", self.code));
         for c in &self.children {
@@ -41,22 +41,22 @@ impl fmt::Debug for DynamicToken {
     }
 }
 
-impl DynamicToken {
-    pub fn add_child(&mut self, child: PrattBox<Symbol>) {
+impl<S: Symbol> DynamicToken<S> {
+    pub fn add_child(&mut self, child: PrattBox<S>) {
         self.children.push(child);
     }
-    pub fn get_child(&self, i: usize) -> Option<&PrattBox<Symbol>> {
+    pub fn get_child(&self, i: usize) -> Option<&PrattBox<S>> {
         self.children.get(i)
     }
 }
 
 
-impl Token for DynamicToken  {
-    fn nud(&mut self, this: PrattBox<Symbol>, pratt: &Pratt) -> PrattBox<Symbol>
+impl<S: Symbol> Token<S> for DynamicToken<S>  {
+    fn nud(&mut self, this: PrattBox<S>, pratt: &Pratt<S>) -> PrattBox<S>
     {
         (self.fnud.clone())(self, this, pratt)
     }
-    fn led(&mut self, this: PrattBox<Symbol>, pratt: &Pratt, left: PrattBox<Symbol>) -> PrattBox<Symbol>
+    fn led(&mut self, this: PrattBox<S>, pratt: &Pratt<S>, left: PrattBox<S>) -> PrattBox<S>
     {
         //let fled = self.fled.clone();
         self.fled.clone()(self, this, pratt, left)

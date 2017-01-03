@@ -25,27 +25,27 @@ type PrattBox<T> = Gc<T>;
 
 
 pub trait Symbol: Mark + fmt::Debug {
-    fn token(&mut self) -> &mut Token;
-    fn nud(&mut self, this: PrattBox<Symbol>, pratt: &Pratt) -> PrattBox<Symbol> {
+    fn token(&mut self) -> &mut Token<Self>;
+    fn nud(&mut self, this: PrattBox<Self>, pratt: &Pratt<Self>) -> PrattBox<Self> where Self: Sized {
         self.token().nud(this, pratt)
     }
-    fn led(&mut self, this: PrattBox<Symbol>, pratt: &Pratt, left: PrattBox<Symbol>) -> PrattBox<Symbol> {
+    fn led(&mut self, this: PrattBox<Self>, pratt: &Pratt<Self>, left: PrattBox<Self>) -> PrattBox<Self> where Self: Sized {
         self.token().led(this, pratt, left)
     }
-    fn lbp(&mut self) -> u8 {
+    fn lbp(&mut self) -> u8 where Self: Sized {
         self.token().lbp()
     }
 }
 
 
-pub trait Token  {
-    fn led(&mut self, this: PrattBox<Symbol>, pratt: &Pratt, left: PrattBox<Symbol>) -> PrattBox<Symbol> {
+pub trait Token<S: Symbol>  {
+    fn led(&mut self, this: PrattBox<S>, pratt: &Pratt<S>, left: PrattBox<S>) -> PrattBox<S> {
         let _ = this;
         let _ = pratt;
         let _ = left;
         unreachable!();
     }
-    fn nud(&mut self, this: PrattBox<Symbol>, pratt: &Pratt) -> PrattBox<Symbol> {
+    fn nud(&mut self, this: PrattBox<S>, pratt: &Pratt<S>) -> PrattBox<S> {
         let _ = this;
         let _ = pratt;
         unreachable!();
@@ -68,35 +68,35 @@ impl<T: InspectAST+?Sized+Mark> InspectAST for PrattBox<T> {
     }
 }
 
-pub trait Tokenizer {
+pub trait Tokenizer<S: Symbol> {
     fn advance(&self);
-    fn current(& self) -> Option<PrattBox<Symbol>>;
+    fn current(& self) -> Option<PrattBox<S>>;
 }
 
-pub struct Pratt {
-    tokenizer: Box<Tokenizer>,
+pub struct Pratt<S: Symbol> {
+    tokenizer: Box<Tokenizer<S>>,
 }
 
-impl Pratt {
-    fn new(tokenizer: Box<Tokenizer>) -> Pratt {
+impl<S: Symbol> Pratt<S> {
+    fn new(tokenizer: Box<Tokenizer<S>>) -> Pratt<S> {
         Pratt { tokenizer: tokenizer }
     }
 
     fn advance(&self) {
         self.tokenizer.advance()
     }
-    fn current(& self) -> Option<PrattBox<Symbol>> {
+    fn current(& self) -> Option<PrattBox<S>> {
         self.tokenizer.current()
     }
 
-    fn nud(&self, this: PrattBox<Symbol>) -> PrattBox<Symbol> {
+    fn nud(&self, this: PrattBox<S>) -> PrattBox<S> {
         this.borrow_mut().nud(this.clone(), self)
     }
-    fn led(&self, this: PrattBox<Symbol>, left: PrattBox<Symbol>) -> PrattBox<Symbol> {
+    fn led(&self, this: PrattBox<S>, left: PrattBox<S>) -> PrattBox<S> {
         this.borrow_mut().led(this.clone(), self, left)
     }
 
-    fn parse(&self, rbp: u8) -> PrattBox<Symbol>  {
+    fn parse(&self, rbp: u8) -> PrattBox<S>  {
         let mut t = self.current().unwrap();
         self.advance();
         let mut left = self.nud(t);
@@ -110,7 +110,7 @@ impl Pratt {
         return left;
     }
 
-    fn pparse(& self) -> PrattBox<Symbol>  {
+    fn pparse(& self) -> PrattBox<S>  {
         self.advance();
         self.parse(0)
     }
@@ -138,7 +138,7 @@ mod tests {
     
     
 
-    type FnewToken = Box<Fn(&str) -> PrattBox<Symbol>>;
+    type FnewToken<S> = Box<Fn(&str) -> PrattBox<S>>;
 
    
     
@@ -148,7 +148,7 @@ mod tests {
     }
 
     
-    impl Token for EndToken {
+    impl<S: Symbol> Token<S> for EndToken {
         fn lbp(&self) -> u8 {
             self.lbp
         }
@@ -161,30 +161,12 @@ mod tests {
         lbp: u8,
     }
      
- 
-    #[derive(Debug)]
-    struct LiteralSymbol {
-        token: LiteralToken,
-    }
     
-    impl LiteralSymbol {
-        fn new(code: &str) -> PrattBox<Symbol> {
-            prattbox!(LiteralSymbol { token: LiteralToken { code: String::from(code), lbp: 0 }})
-        }
-    }
-    
-    impl Symbol for LiteralSymbol {
-        fn token(&mut self) -> &mut Token {
-            &mut self.token
-        }
-    }
-    
-    impl Mark for LiteralSymbol {}
-    impl Token for LiteralToken {
-        fn led(&mut self, this: PrattBox<Symbol>, pratt: &Pratt, left: PrattBox<Symbol>) -> PrattBox<Symbol> {
+    impl<S: Symbol> Token<S> for LiteralToken {
+        fn led(&mut self, this: PrattBox<S>, pratt: &Pratt<S>, left: PrattBox<S>) -> PrattBox<S> {
             unreachable!();
         }
-        fn nud(&mut self, this: PrattBox<Symbol>, pratt: &Pratt) -> PrattBox<Symbol> { 
+        fn nud(&mut self, this: PrattBox<S>, pratt: &Pratt<S>) -> PrattBox<S> { 
             this
         }
         fn lbp(&self) -> u8 {
@@ -198,30 +180,8 @@ mod tests {
         lbp: u8,
     }
      
-    #[derive(Debug)]
-    struct StringSymbol {
-        token: StringToken,
-    }
-     
-    impl Symbol for StringSymbol {
-        fn token(&mut self) -> &mut Token {
-            &mut self.token
-        }
-    }
-    
-    impl Mark for StringSymbol {
-        fn mark(&self, gc: &mut InGcEnv) {
-        }
-    }
-
-   
-    impl StringSymbol {
-        fn new(code: &str) -> PrattBox<Symbol> {
-            prattbox!(StringSymbol { token: StringToken { code: String::from(code), lbp: 0 }})
-        }
-    }
-    impl Token for StringToken {
-        fn nud(&mut self, this: PrattBox<Symbol>, pratt: &Pratt) -> PrattBox<Symbol> { 
+    impl<S: Symbol> Token<S> for StringToken {
+        fn nud(&mut self, this: PrattBox<S>, pratt: &Pratt<S>) -> PrattBox<S> { 
             this
         }
         fn lbp(& self) -> u8 {
@@ -238,8 +198,8 @@ mod tests {
     }
     
 
-    impl Token for NumToken  {
-        fn nud(&mut self, this: PrattBox<Symbol>, pratt: &Pratt) -> PrattBox<Symbol> { 
+    impl<S: Symbol> Token<S> for NumToken  {
+        fn nud(&mut self, this: PrattBox<S>, pratt: &Pratt<S>) -> PrattBox<S> { 
             this
         }
         fn lbp(& self) -> u8 {
@@ -248,17 +208,17 @@ mod tests {
     }
     
     #[derive( Debug)]
-    struct PlusToken {
+    struct PlusToken<S: Symbol> {
         code: String,
-        left: Option<PrattBox<Symbol>>,
-        right: Option<PrattBox<Symbol>>,
+        left: Option<PrattBox<S>>,
+        right: Option<PrattBox<S>>,
         lbp: u8,
     }
      
 
     
-    impl Token for PlusToken  {
-        fn led(&mut self, this: PrattBox<Symbol>, pratt: &Pratt, left: PrattBox<Symbol>) -> PrattBox<Symbol>
+    impl<S: Symbol> Token<S> for PlusToken<S>  {
+        fn led(&mut self, this: PrattBox<S>, pratt: &Pratt<S>, left: PrattBox<S>) -> PrattBox<S>
         {
             self.left = Some(left);
             self.right = Some(pratt.parse(0)); 
@@ -271,16 +231,16 @@ mod tests {
     
     
     #[derive( Debug)]
-    struct MultToken {
+    struct MultToken<S: Symbol> {
         code: String,
-        left: Option<PrattBox<Symbol>>,
-        right: Option<PrattBox<Symbol>>,
+        left: Option<PrattBox<S>>,
+        right: Option<PrattBox<S>>,
         lbp: u8,
     }
     
        
-    impl Token for MultToken  {
-        fn led(&mut self, this: PrattBox<Symbol>, pratt: &Pratt, left: PrattBox<Symbol>) -> PrattBox<Symbol>
+    impl<S : Symbol> Token<S> for MultToken<S>  {
+        fn led(&mut self, this: PrattBox<S>, pratt: &Pratt<S>, left: PrattBox<S>) -> PrattBox<S>
         {
             self.left = Some(left);
             self.right = Some(pratt.parse(0)); 
@@ -297,34 +257,34 @@ mod tests {
         LiteralSymbol(LiteralToken),
         StringSymbol(StringToken),
         NumSymbol(NumToken),
-        PlusSymbol(PlusToken),
-        MultSymbol(MultToken),
+        PlusSymbol(PlusToken<StaticSymbol>),
+        MultSymbol(MultToken<StaticSymbol>),
     }
     use self::StaticSymbol::*;
  
-   fn newlit(code: &str) -> PrattBox<Symbol> {
+   fn newlit(code: &str) -> PrattBox<StaticSymbol> {
             prattbox!(StaticSymbol::LiteralSymbol( LiteralToken { code: String::from(code), 
                                 lbp: 0,  }))  
    }
-   fn newstring(code: &str) -> PrattBox<Symbol> {
+   fn newstring(code: &str) -> PrattBox<StaticSymbol> {
             prattbox!(StaticSymbol::StringSymbol( StringToken { code: String::from(code), 
                                 lbp: 0,  }))  
    }
-   fn newnum(code: &str) -> PrattBox<Symbol> {
+   fn newnum(code: &str) -> PrattBox<StaticSymbol> {
             prattbox!(StaticSymbol::NumSymbol( NumToken { code: String::from(code), 
                                 lbp: 0,  val: i64::from_str_radix(code, 10).ok().unwrap()}))  
    }
-   fn newplus(code: &str) -> PrattBox<Symbol> {
+   fn newplus(code: &str) -> PrattBox<StaticSymbol> {
             prattbox!(StaticSymbol::PlusSymbol( PlusToken { code: String::from(code), 
                                 lbp: 20, left: None, right: None }))
    }
-   fn newmult(code: &str) -> PrattBox<Symbol> {
+   fn newmult(code: &str) -> PrattBox<StaticSymbol> {
             prattbox!(StaticSymbol::MultSymbol( MultToken { code: String::from(code), 
                                 lbp: 30, left: None, right: None }))
    }
 
     impl Symbol for StaticSymbol {
-        fn token(&mut self) -> &mut Token {
+        fn token(&mut self) -> &mut Token<StaticSymbol> {
             match *self {
                 EndSymbol(ref mut t) =>  (t ) ,
                 LiteralSymbol(ref mut t) =>  (t ) ,
@@ -332,7 +292,7 @@ mod tests {
                 NumSymbol(ref mut t) => (t ) ,
                 PlusSymbol(ref mut t) => (t ),
                 MultSymbol(ref mut t) => (t ),
-                _ => { unreachable!(); }
+                // _ => { unreachable!(); }
             }
         }
     }
@@ -356,15 +316,15 @@ mod tests {
         inquotepar: u32,
     }
     
-    struct StringTokenizer {
+    struct StringTokenizer<S: Symbol> {
         input: String,
-        tokens : RefCell<Vec<PrattBox<Symbol>>>,
-        map: RefCell<HashMap<&'static str, FnewToken>>,
+        tokens : RefCell<Vec<PrattBox<S>>>,
+        map: RefCell<HashMap<&'static str, FnewToken<S>>>,
         st: RefCell<TokenizerStatus>,
     }
     
-    impl StringTokenizer {
-        fn new(input: String) -> StringTokenizer {
+    impl<S: Symbol> StringTokenizer<S> {
+        fn new(input: String) -> StringTokenizer<S> {
             StringTokenizer {
                 input: input,
                 st: RefCell::new(
@@ -378,7 +338,7 @@ mod tests {
                 map: RefCell::new(HashMap::new()),
             }
         }
-        fn new_token(&self, typ: &str, s: &str) -> PrattBox<Symbol> {
+        fn new_token(&self, typ: &str, s: &str) -> PrattBox<S> {
             if let Some(ref f ) = self.map.borrow().get(typ) {
                 f(s)
             } else {
@@ -386,14 +346,14 @@ mod tests {
             }
         }
     
-        fn register_token(& self, s: &'static str, f: FnewToken) {
+        fn register_token(& self, s: &'static str, f: FnewToken<S>) {
             self.map.borrow_mut().insert(s, f);
         }
     }
     
-    impl Tokenizer for StringTokenizer {
+    impl<S: Symbol> Tokenizer<S> for StringTokenizer<S> {
     
-        fn current(&self) -> Option<PrattBox<Symbol>> {
+        fn current(&self) -> Option<PrattBox<S>> {
             let mut tokens = self.tokens.borrow_mut();
             tokens.last().map(|e| { e.clone() }) 
         }
@@ -440,7 +400,7 @@ mod tests {
                             "." => {
                                 st.j = st.j + 1;
                                 if st.j >= self.input.len() {
-                                    self.tokens.borrow_mut().push(prattbox!(EndSymbol(EndToken{lbp:0})));    
+                                    self.tokens.borrow_mut().push(self.new_token("end", &self.input[st.i..st.j]));
                                     st.status = TokenStatus::EndToken;
                                 } else {
                                     st.status = TokenStatus::InNum;
@@ -558,13 +518,14 @@ mod tests {
     impl Mark for StringToken {}
     impl Mark for LiteralToken {}
     impl Mark for NumToken {}
-    impl Mark for PlusToken {}
-    impl Mark for MultToken {}
+    impl<S: Symbol> Mark for PlusToken<S> {}
+    impl<S: Symbol> Mark for MultToken<S> {}
     
     #[test] 
     fn test_static() {
         let program = "1 + 2 * 3 .";
         let tokenizer = StringTokenizer::new(String::from(program));
+        tokenizer.register_token("end", Box::new(|s| { prattbox!(EndSymbol(EndToken{lbp:0}))}));    
         tokenizer.register_token("string", Box::new(newstring));
         tokenizer.register_token("literal", Box::new(newlit));
         tokenizer.register_token("num", Box::new(newnum));
@@ -572,16 +533,29 @@ mod tests {
         tokenizer.register_token("*", Box::new(newmult));
         let parser = Pratt::new(Box::new(tokenizer));
         let ast = parser.pparse();
-        unsafe {
-        match ast.borrow_mut().token() {
-            &mut MultToken { left : ref l, right: ref r, .. } => {
-            },
-            &mut PlusToken { left : ref l, right: ref r, .. } => {
+        match *ast.borrow_mut() {
+            PlusSymbol( PlusToken { left : ref l, right: ref r, .. }) => {
+                let left = l.unwrap();
+                match *left.borrow_mut() {
+                    NumSymbol(NumToken { val: v, .. }) => {
+                        assert_eq!(v, 1);
+                    },
+                    _ => {
+                        assert!(false, "1 not found");
+                    }
+                };
+                let right = r.unwrap();
+                match *right.borrow_mut() {
+                    MultSymbol(MultToken { left : ref l, right: ref r, .. }) => {
+                    },
+                    _ => {
+                        assert!(false, "mult not found");
+                    }
+                };
             },
             _ => {
-                assert!(false, "mult not found");
+                assert!(false, "plus not found");
             }
-        }
         }
         gc::finalize();
     }
