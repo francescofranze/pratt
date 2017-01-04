@@ -1,12 +1,9 @@
-use std::fmt;
 
 #[cfg(not(feature="gc3c"))]
 #[macro_use]
 pub mod rcbox;
 #[cfg(not(feature="gc3c"))]
-use rcbox::PrattBox;
-#[cfg(not(feature="gc3c"))]
-pub trait Mark {}
+pub use rcbox::PrattBox;
 
 #[cfg(feature="gc3c")]
 extern crate gc3c;
@@ -15,8 +12,31 @@ use gc3c::{Gc, Mark};
 #[cfg(feature="gc3c")]
 pub type PrattBox<T> = Gc<T>;
 
+#[cfg(feature="gc3c")]
+#[macro_export]
+macro_rules! prattbox {
+    ($expression:expr) => (
+        gc::new_gc($expression)
+    )
+}
 
-pub trait Symbol: Mark + fmt::Debug {
+#[cfg(feature="gc3c")]
+pub trait Symbol: Mark  {
+    fn token(&mut self) -> &mut  Token<Self>;
+    fn nud(&mut self, this: PrattBox<Self>, pratt: &Pratt<Self>) -> PrattBox<Self> where Self: Sized {
+        self.token().nud(this, pratt)
+    }
+    fn led(&mut self, this: PrattBox<Self>, pratt: &Pratt<Self>, left: PrattBox<Self>) -> PrattBox<Self> where Self: Sized {
+        self.token().led(this, pratt, left)
+    }
+    fn lbp(&mut self) -> u8 where Self: Sized {
+        self.token().lbp()
+    }
+}
+
+
+#[cfg(not(feature="gc3c"))]
+pub trait Symbol  {
     fn token(&mut self) -> &mut  Token<Self>;
     fn nud(&mut self, this: PrattBox<Self>, pratt: &Pratt<Self>) -> PrattBox<Self> where Self: Sized {
         self.token().nud(this, pratt)

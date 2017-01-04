@@ -1,19 +1,18 @@
+#[cfg(feature="gc3c")]
 extern crate gc3c;
+#[macro_use]
 extern crate pratt;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::HashMap;
 
+#[cfg(feature="gc3c")]
 use gc3c::{InGcEnv, gc, Mark};
+
 use pratt::{PrattBox, Token, Symbol, Pratt, Tokenizer};
 use pratt::dyn::{DynamicToken, DynamicSymbol };
     
-macro_rules! prattbox {
-    ($expression:expr) => (
-        gc::new_gc($expression)
-    )
-}
     
     
 
@@ -396,6 +395,7 @@ impl Symbol for StaticSymbol {
     }
 }
 
+#[cfg(feature="gc3c")]
 impl Mark for StaticSymbol {
     fn mark(&self, gc: &mut InGcEnv) {
         match *self {
@@ -435,7 +435,10 @@ fn test_static() {
     let ast = parser.pparse();
     match *ast.borrow_mut() {
         PlusSymbol( PlusToken { left : ref l, right: ref r, .. }) => {
+            #[cfg(feature="gc3c")]
             let left = l.unwrap();
+            #[cfg(not(feature="gc3c"))]
+            let left = l.clone().unwrap();
             match *left.borrow_mut() {
                 NumSymbol(NumToken { val: v, .. }) => {
                     assert_eq!(v, 1);
@@ -444,10 +447,16 @@ fn test_static() {
                     assert!(false, "1 not found");
                 }
             };
+            #[cfg(feature="gc3c")]
             let right = r.unwrap();
+            #[cfg(not(feature="gc3c"))]
+            let right = r.clone().unwrap();
             match *right.borrow_mut() {
                 MultSymbol(MultToken { left : ref l, right: ref r, .. }) => {
+                    #[cfg(feature="gc3c")]
                     let left = l.unwrap();
+                    #[cfg(not(feature="gc3c"))]
+                    let left = l.clone().unwrap();
                     match *left.borrow_mut() {
                         NumSymbol(NumToken { val: v, .. }) => {
                             assert_eq!(v, 2);
@@ -456,7 +465,10 @@ fn test_static() {
                             assert!(false, "2 not found");
                         }
                     };
+                    #[cfg(feature="gc3c")]
                     let right = r.unwrap();
+                    #[cfg(not(feature="gc3c"))]
+                    let right = r.clone().unwrap();
                     match *right.borrow_mut() {
                         NumSymbol(NumToken { val: v, .. }) => {
                             assert_eq!(v, 3);
@@ -475,7 +487,8 @@ fn test_static() {
         _ => {
             assert!(false, "plus not found");
         }
-    }
+    };
+    #[cfg(feature="gc3c")]
     gc::finalize();
 }
 
@@ -623,7 +636,8 @@ fn test_static() {
                 },
             };
         },
-    }
+    };
 
-     gc::finalize();
+    #[cfg(feature="gc3c")]
+    gc::finalize();
 }

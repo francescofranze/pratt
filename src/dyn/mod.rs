@@ -2,8 +2,8 @@ use std::fmt;
 use super::{PrattBox, Token, Symbol, Pratt};
 #[cfg(feature="gc3c")]
 use gc3c::{Mark,InGcEnv};
-#[cfg(not(feature="gc3c"))]
-use super::Mark;
+//#[cfg(not(feature="gc3c"))]
+//use super::Mark;
 use std::rc::Rc;
  
 pub struct DynamicToken  {
@@ -64,8 +64,8 @@ impl Token<DynamicSymbol> for DynamicToken  {
         self.lbp
     }
 }
-#[cfg(not(feature="gc3c"))]
-impl Mark for DynamicSymbol {}
+//#[cfg(not(feature="gc3c"))]
+//impl Mark for DynamicSymbol {}
 
 #[cfg(feature="gc3c")]
 impl Mark for DynamicSymbol {
