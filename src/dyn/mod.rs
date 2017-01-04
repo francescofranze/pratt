@@ -1,6 +1,5 @@
 use std::fmt;
 use super::{PrattBox, Token, Symbol, Pratt};
-use super::InspectAST;
 #[cfg(feature="gc3c")]
 use gc3c::{Mark,InGcEnv};
 #[cfg(not(feature="gc3c"))]
@@ -16,7 +15,7 @@ pub struct DynamicToken  {
 }
 
 pub struct DynamicSymbol {
-    token: DynamicToken,
+    pub token: DynamicToken,
 }
 
 impl Symbol for DynamicSymbol {
@@ -71,120 +70,8 @@ impl Mark for DynamicSymbol {}
 #[cfg(feature="gc3c")]
 impl Mark for DynamicSymbol {
     fn mark(&self, gc: &mut InGcEnv) {
-    }
-}
-
-#[cfg(test)]
-pub mod tests {
-    use std::fmt;
-    use std::cell::RefCell;
-    use std::rc::Rc;
-    use std::collections::HashMap;
-
-    #[cfg(feature="gc3c")]
-    use gc3c::{Gc, InGcEnv, gc, Mark};
-    use super::{PrattBox, Token, Symbol, Pratt };
-    use super::super::Tokenizer;
-    use super::{DynamicToken, DynamicSymbol};
-
-     type FnewToken<S> = Box<Fn(&str) -> PrattBox<S>>;
-
-
-    
-    #[cfg(feature="gc3c")]
-    macro_rules! prattbox {
-        ($expression:expr) => (
-            gc::new_gc($expression)
-        )
-    }
-    
-    
-      
-    #[derive(Debug, PartialEq)]
-    enum TokenStatus {
-        Init,
-        InToken,
-        InQuote,
-        InString,
-        InNum,
-        EndToken,
-    }
- 
-    struct TokenizerStatus {
-        status: TokenStatus,
-        i: usize,
-        j: usize,
-        inquotepar: u32,
-    }
-    
-    struct StringTokenizer<S: Symbol> {
-        input: String,
-        tokens : RefCell<Vec<PrattBox<S>>>,
-        map: RefCell<HashMap<&'static str, FnewToken<S>>>,
-        st: RefCell<TokenizerStatus>,
-    }
-    
-    impl<S: Symbol> StringTokenizer<S> {
-        fn new(input: String) -> StringTokenizer<S> {
-            StringTokenizer {
-                input: input,
-                st: RefCell::new(
-                    TokenizerStatus {
-                              status: TokenStatus::Init, 
-                              i: 0, j: 0,
-                              inquotepar: 0,
-                    }
-                ),
-                tokens: RefCell::new(Vec::new()),
-                map: RefCell::new(HashMap::new()),
-            }
+        for &child in self.token.children.iter() {
+            child.mark_grey(gc);
         }
-        fn new_token(&self, typ: &str, s: &str) -> PrattBox<S> {
-            if let Some(ref f ) = self.map.borrow().get(typ) {
-                f(s)
-            } else {
-                unreachable!("cannot handle token");
-            }
-        }
-    
-        fn register_token(& self, s: &'static str, f: FnewToken<S>) {
-            self.map.borrow_mut().insert(s, f);
-        }
-    }
-    
-    impl<S: Symbol> Tokenizer<S> for StringTokenizer<S> {
-    
-        fn current(&self) -> Option<PrattBox<S>> {
-            let mut tokens = self.tokens.borrow_mut();
-            tokens.last().map(|e| { e.clone() }) 
-        }
-    
-        fn advance(& self)  {
-        }
-    }
-
-
-     
-    #[test] 
-    fn test_dynamic() {
-        let program = "1 + 2 * 3 .";
-        let tokenizer = StringTokenizer::new(String::from(program));
-        tokenizer.register_token("end", Box::new(|s| { prattbox!(DynamicSymbol{ token: DynamicToken {
-                                                                                            code: String::from(s), 
-                                                                                            lbp:0,
-                                                                                            children: vec![],
-                                                                                            fnud: Rc::new(|se, this, pratt| { this }),
-                                                                                            fled: Rc::new(|se, this, pratt, left| { this }),
-                                                                                       }})}));    
-        /*
-        tokenizer.register_token("string", Box::new(newstring));
-        tokenizer.register_token("literal", Box::new(newlit));
-        tokenizer.register_token("num", Box::new(newnum));
-        tokenizer.register_token("+", Box::new(newplus));
-        tokenizer.register_token("*", Box::new(newmult));
-        */
-        let parser = Pratt::new(Box::new(tokenizer));
-        let ast = parser.pparse();
-
     }
 }
