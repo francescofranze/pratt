@@ -1,3 +1,4 @@
+#![allow(dead_code)]    
 #[cfg(feature="gc3c")]
 extern crate gc3c;
 #[macro_use]
@@ -14,9 +15,8 @@ use pratt::{PrattBox, Token, Symbol, Pratt, Tokenizer};
 use pratt::dyn::{DynamicToken, DynamicSymbol };
     
     
-    
 
-type FnewToken<S> = Box<Fn(&str) -> PrattBox<S>>;
+type FnewToken<S> = Box<dyn Fn(&str) -> PrattBox<S>>;
    
 #[derive(Debug, PartialEq)]
 enum TokenStatus {
@@ -382,7 +382,7 @@ fn newmult(code: &str) -> PrattBox<StaticSymbol> {
 }
 
 impl Symbol for StaticSymbol {
-    fn token(&mut self) -> &mut  Token<StaticSymbol> {
+    fn token(&mut self) -> &mut dyn Token<StaticSymbol> {
         match *self {
             EndSymbol(ref mut t) =>  (t ) ,
             LiteralSymbol(ref mut t) =>  (t ) ,

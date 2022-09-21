@@ -10,8 +10,8 @@ pub struct DynamicToken  {
     pub code: String,
     pub children: Vec<PrattBox<DynamicSymbol>>,
     pub lbp: u8,
-    pub fnud: Rc<Fn(&mut DynamicToken, PrattBox<DynamicSymbol>, &Pratt<DynamicSymbol>)->PrattBox<DynamicSymbol>>,
-    pub fled: Rc<Fn(&mut DynamicToken, PrattBox<DynamicSymbol>, &Pratt<DynamicSymbol>, PrattBox<DynamicSymbol>)->PrattBox<DynamicSymbol>>,
+    pub fnud: Rc<dyn Fn(&mut DynamicToken, PrattBox<DynamicSymbol>, &Pratt<DynamicSymbol>)->PrattBox<DynamicSymbol>>,
+    pub fled: Rc<dyn Fn(&mut DynamicToken, PrattBox<DynamicSymbol>, &Pratt<DynamicSymbol>, PrattBox<DynamicSymbol>)->PrattBox<DynamicSymbol>>,
 }
 
 pub struct DynamicSymbol {
@@ -19,7 +19,7 @@ pub struct DynamicSymbol {
 }
 
 impl Symbol for DynamicSymbol {
-    fn token(&mut self) -> &mut Token<DynamicSymbol> {
+    fn token(&mut self) -> &mut dyn Token<DynamicSymbol> {
         &mut self.token
     }
 }
@@ -32,9 +32,9 @@ impl fmt::Debug for DynamicSymbol {
 
 impl fmt::Debug for DynamicToken {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "dynamic {}", self.code));
+        write!(f, "dynamic {}", self.code)?;
         for c in &self.children {
-            try!(write!(f, "child: {:?}", c));
+            write!(f, "child: {:?}", c)?;
         }
         write!(f,"")
     }

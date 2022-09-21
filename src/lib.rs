@@ -22,7 +22,7 @@ macro_rules! prattbox {
 
 #[cfg(feature="gc3c")]
 pub trait Symbol: Mark  {
-    fn token(&mut self) -> &mut  Token<Self>;
+    fn token(&mut self) -> &mut dyn Token<Self>;
     fn nud(&mut self, this: PrattBox<Self>, pratt: &Pratt<Self>) -> PrattBox<Self> where Self: Sized {
         self.token().nud(this, pratt)
     }
@@ -37,7 +37,7 @@ pub trait Symbol: Mark  {
 
 #[cfg(not(feature="gc3c"))]
 pub trait Symbol  {
-    fn token(&mut self) -> &mut  Token<Self>;
+    fn token(&mut self) -> &mut dyn Token<Self>;
     fn nud(&mut self, this: PrattBox<Self>, pratt: &Pratt<Self>) -> PrattBox<Self> where Self: Sized {
         self.token().nud(this, pratt)
     }
@@ -68,11 +68,11 @@ pub trait Tokenizer<S: Symbol> {
 }
 
 pub struct Pratt<S: Symbol> {
-    tokenizer: Box<Tokenizer<S>>,
+    tokenizer: Box<dyn Tokenizer<S>>,
 }
 
 impl<S: Symbol> Pratt<S> {
-    pub fn new(tokenizer: Box<Tokenizer<S>>) -> Pratt<S> {
+    pub fn new(tokenizer: Box<dyn Tokenizer<S>>) -> Pratt<S> {
         Pratt { tokenizer: tokenizer }
     }
 
